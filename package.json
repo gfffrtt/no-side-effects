@@ -2,6 +2,7 @@
   "name": "no-side-effects",
   "version": "0.0.3",
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts"
   },
