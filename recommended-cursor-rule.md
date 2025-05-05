@@ -53,23 +53,23 @@ When handling errors, separate client-facing messages from internal details:
 tryCatch(
   () => JSON.parse(input),
   (err) =>
-    error({
-      error: new Error(
+    error(
+      new Error(
         "Unable to process the input data", // Client-safe message
         { cause: err } // Internal technical details
       ),
-      tag: "JSON_PARSE_ERROR",
-    })
+      "JSON_PARSE_ERROR"
+    )
 );
 
 // ❌ Bad - Exposing internal error details to client
 tryCatch(
   () => JSON.parse(input),
   (err) =>
-    error({
-      error: new Error(err.message), // Don't expose internal error messages!
-      tag: "ERROR",
-    })
+    error(
+      new Error(err.message), // Don't expose internal error messages!
+      "ERROR"
+    )
 );
 ```
 
@@ -101,44 +101,45 @@ Always provide both client-safe messages and preserve internal error context:
 tryCatch(
   () => riskyOperation(),
   (err) =>
-    error({
-      error: new Error(
+    error(
+      new Error(
         "The operation could not be completed", // Client-safe
         { cause: err } // Internal details preserved
       ),
-      tag: "OPERATION_ERROR",
-    })
+      "OPERATION_ERROR"
+    )
 );
 
 // ❌ Bad - Exposing internal details in main message
 tryCatch(
   () => riskyOperation(),
   (err) =>
-    error({
-      error: new Error(
+    error(
+      new Error(
         `Operation failed: ${err.message}`, // Don't expose internal details!
         { cause: err }
       ),
-      tag: "OPERATION_ERROR",
-    })
+      "OPERATION_ERROR"
+    )
 );
 ```
 
 ### 5. Success Results
 
-When creating success results, be explicit about the data structure:
+When creating success results, be explicit about the data structure when passing data:
 
 ```typescript
-// ✅ Good
+// ✅ Good - With data
 const result = ok({
-  data: {
-    id: user.id,
-    name: user.name,
-  },
+  id: user.id,
+  name: user.name,
 });
 
+// ✅ Good - Without data when no return value is needed
+const result = ok();
+
 // ❌ Bad - Implicit or unclear data structure
-const result = ok({ data: user });
+const result = ok(user);
 ```
 
 ### 6. Pattern Matching
@@ -170,22 +171,22 @@ Create reusable error handlers with consistent client-safe messages:
 ```typescript
 // ✅ Good
 const handleApiError: OnError<"API_ERROR"> = (err) =>
-  error({
-    error: new Error(
+  error(
+    new Error(
       "The service is temporarily unavailable", // Client-safe message
       { cause: err } // Internal details
     ),
-    tag: "API_ERROR",
-  });
+    "API_ERROR"
+  );
 
 const result = tryCatch(apiCall, handleApiError);
 
 // ❌ Bad - Inconsistent error handling
 const result1 = tryCatch(apiCall1, (err) =>
-  error({
-    error: new Error(err.message), // Inconsistent and unsafe
-    tag: "API_ERROR",
-  })
+  error(
+    new Error(err.message), // Inconsistent and unsafe
+    "API_ERROR"
+  )
 );
 ```
 
@@ -204,13 +205,13 @@ const fetchUser = async (id: string) => {
       return response.json();
     },
     (err) =>
-      error({
-        error: new Error(
+      error(
+        new Error(
           "Unable to retrieve user information", // Client-safe
           { cause: err } // Internal details
         ),
-        tag: "USER_FETCH_ERROR",
-      })
+        "USER_FETCH_ERROR"
+      )
   );
 
   return result;
@@ -229,13 +230,13 @@ const saveUser = async (user: User) => {
       return user;
     },
     (err) =>
-      error({
-        error: new Error(
+      error(
+        new Error(
           "Failed to save user information", // Client-safe
           { cause: err } // Internal details
         ),
-        tag: "DB_WRITE_ERROR",
-      })
+        "DB_WRITE_ERROR"
+      )
   );
 };
 ```
@@ -247,13 +248,13 @@ const readConfig = () => {
   return tryCatch(
     () => JSON.parse(fs.readFileSync("config.json", "utf-8")),
     (err) =>
-      error({
-        error: new Error(
+      error(
+        new Error(
           "Unable to load application configuration", // Client-safe
           { cause: err } // Internal details
         ),
-        tag: "CONFIG_ERROR",
-      })
+        "CONFIG_ERROR"
+      )
   );
 };
 ```

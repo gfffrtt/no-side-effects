@@ -3,56 +3,55 @@
  *
  * @template E - The error type, must extend Error
  * @template T - The error tag type, must be a string
- * @param payload - The error payload object
- * @param payload.error - The error instance
- * @param payload.tag - A string tag to identify the error type
+ * @param error - The error instance
+ * @param tag - A string tag to identify the error type
  * @returns A typed error result object with status "error"
  *
  * @example
  * // Basic usage
- * const err = error({
- *   error: new Error("Not found"),
- *   tag: "NOT_FOUND"
- * });
+ * const err = error(
+ *   new Error("Not found"),
+ *   "NOT_FOUND"
+ * );
  * err
  * // ^? const err: { status: "error"; error: Error; tag: "NOT_FOUND"; }
  */
-export const error = <E extends Error, T extends string>(payload: {
-  error: E;
-  tag: T;
-}) => {
-  return {
-    status: "error",
-    error: payload.error,
-    tag: payload.tag,
-  } as const;
+export const error = <E extends Error, T extends string>(error: E, tag: T) => {
+  return { status: "error", error, tag } as const;
 };
 
 /**
  * Creates a strongly-typed success result object.
  *
  * @template D - The data type
- * @param payload - The success payload object
- * @param payload.data - The success data
- * @returns A typed success result object with status "success"
+ * @param data - The success data (optional)
+ * @returns A typed success result object with status "success" and optional data
  *
  * @example
  * // Basic usage with string data
- * const result = ok({ data: "Operation successful" });
+ * const result = ok("Operation successful");
+ * result
+ * // ^? const result: { status: "success"; data: string; }
  *
  * @example
  * // With complex data type
  * interface User { id: number; name: string; }
- * const result = ok({ data: { id: 1, name: "John" } as User });
+ * const user: User = { id: 1, name: "John" };
+ * const result = ok(user);
  * result
  * // ^? const result: { status: "success"; data: User; }
+ *
+ * @example
+ * // Without data
+ * const result = ok();
+ * result
+ * // ^? const result: { status: "success"; }
  */
-export const ok = <D>(payload: { data: D }) => {
-  return {
-    status: "success",
-    data: payload.data,
-  } as const;
-};
+export function ok<D>(data: D): { status: "success"; data: D };
+export function ok(): { status: "success" };
+export function ok<D>(data?: D): { status: "success"; data?: D } {
+  return { status: "success", data } as const;
+}
 
 /**
  * Type representing a successful result with generic data type R.
@@ -87,10 +86,10 @@ export type Err<E extends Error, T extends string> = ReturnType<
  * @template T - The error tag type
  *
  * @example
- * const handleApiError: OnError<"API_ERROR"> = (err) => error({
- *   error: new Error("API request failed"),
- *   tag: "API_ERROR"
- * });
+ * const handleApiError: OnError<"API_ERROR"> = (err) => error(
+ *   new Error("API request failed"),
+ *   "API_ERROR"
+ * );
  */
 export type OnError<T extends string> = (
   err: unknown
@@ -109,25 +108,37 @@ export type OnError<T extends string> = (
  * @returns A Result object (either Success<R> or Err<Error, T>)
  *
  * @example
- * // Using with an error handler function
+ * // Using with an error handler function and return data
  * const result = tryCatch(
  *   () => JSON.parse('{"invalid": json}'),
- *   (err) => error({
- *     error: new Error("Parse failed"),
- *     tag: "PARSE_ERROR"
- *   })
+ *   (err) => error(
+ *     new Error("Parse failed"),
+ *     "PARSE_ERROR"
+ *   )
  * );
  * result
  * // ^? const result: { status: "error"; error: Error; tag: "PARSE_ERROR"; } | { status: "success"; data: any; }
  *
  * @example
- * // Using with an error tag string
+ * // Using with an error tag string and return data
  * const result = tryCatch(
  *   () => localStorage.getItem("user"),
  *   "STORAGE_ERROR"
  * );
  * result
  * // ^? const result: { status: "error"; error: Error; tag: "STORAGE_ERROR"; } | { status: "success"; data: string; }
+ *
+ * @example
+ * // Using without return data
+ * const result = tryCatch(
+ *   () => {
+ *     db.insert("users").values({ id: 1, name: "John" });
+ *     return ok();
+ *   },
+ *   "DATABASE_ERROR"
+ * );
+ * result
+ * // ^? const result: { status: "error"; error: Error; tag: "DATABASE_ERROR"; } | { status: "success"; }
  */
 export function tryCatch<R, T extends string>(
   fn: () => R,
@@ -143,12 +154,12 @@ export function tryCatch<R, T extends string>(
   onError?: OnError<T>
 ): Success<R> | Err<Error, T> | ReturnType<OnError<T>> {
   try {
-    return ok({ data: fn() });
+    return ok(fn());
   } catch (err) {
     if (typeof tagOrOnError === "function") return tagOrOnError(err);
     if (!tagOrOnError) throw new Error("Tag is required");
-    if (err instanceof Error) return error({ error: err, tag: tagOrOnError });
-    return error({ error: new Error(String(err)), tag: tagOrOnError });
+    if (err instanceof Error) return error(err, tagOrOnError);
+    return error(new Error(String(err)), tagOrOnError);
   }
 }
 
@@ -165,19 +176,19 @@ export function tryCatch<R, T extends string>(
  * @returns A Promise of a Result object (either Success<R> or Err<Error, T>)
  *
  * @example
- * // Using with an error handler function
+ * // Using with an error handler function and return data
  * const result = await tryCatchAsync(
  *   () => fetch("https://api.example.com/data"),
- *   (err) => error({
- *     error: new Error("API request failed"),
- *     tag: "API_ERROR"
- *   })
+ *   (err) => error(
+ *     new Error("API request failed"),
+ *     "API_ERROR"
+ *   )
  * );
  * result
  * // ^? const result: { status: "error"; error: Error; tag: "API_ERROR"; } | { status: "success"; data: Response; }
  *
  * @example
- * // Using with an error tag string
+ * // Using with an error tag string and return data
  * const result = await tryCatchAsync(
  *   async () => {
  *     const response = await fetch("https://api.example.com/user");
@@ -188,6 +199,18 @@ export function tryCatch<R, T extends string>(
  * );
  * result
  * // ^? const result: { status: "error"; error: Error; tag: "FETCH_ERROR"; } | { status: "success"; data: { id: number; name: string }; }
+ *
+ * @example
+ * // Using without return data
+ * const result = await tryCatchAsync(
+ *   async () => {
+ *     await fetch("https://api.example.com/logout", { method: "POST" });
+ *     return ok();
+ *   },
+ *   "LOGOUT_ERROR"
+ * );
+ * result
+ * // ^? const result: { status: "error"; error: Error; tag: "LOGOUT_ERROR"; } | { status: "success"; }
  */
 export function tryCatchAsync<R, T extends string>(
   fn: () => Promise<R>,
@@ -203,11 +226,11 @@ export async function tryCatchAsync<R, T extends string>(
   onError?: OnError<T>
 ): Promise<Success<R> | Err<Error, T> | ReturnType<OnError<T>>> {
   try {
-    return ok({ data: await fn() });
+    return ok(await fn());
   } catch (err) {
     if (typeof tagOrOnError === "function") return tagOrOnError(err);
     if (!tagOrOnError) throw new Error("Tag is required");
-    if (err instanceof Error) return error({ error: err, tag: tagOrOnError });
-    return error({ error: new Error(String(err)), tag: tagOrOnError });
+    if (err instanceof Error) return error(err, tagOrOnError);
+    return error(new Error(String(err)), tagOrOnError);
   }
 }

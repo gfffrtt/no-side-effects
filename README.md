@@ -51,16 +51,16 @@ const fetchUser = async (id: string) => {
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
-      return response.json();
+      return await response.json();
     },
     (err) =>
-      error({
-        error: new Error(
+      error(
+        new Error(
           "Unable to retrieve user information", // Client-safe message
           { cause: err } // Internal details
         ),
-        tag: "USER_FETCH_ERROR",
-      })
+        "USER_FETCH_ERROR"
+      )
   );
 
   return result;
@@ -158,16 +158,14 @@ function tryCatchAsync<R, T extends string>(
 ### `error`
 
 ```typescript
-function error<E extends Error, T extends string>(payload: {
-  error: E;
-  tag: T;
-}): Err<E, T>;
+function error<E extends Error, T extends string>(error: E, tag: T): Err<E, T>;
 ```
 
 ### `ok`
 
 ```typescript
-function ok<D>(payload: { data: D }): Success<D>;
+function ok<D>(data: D): Success<D>;
+function ok(): { status: "success" };
 ```
 
 ## License
